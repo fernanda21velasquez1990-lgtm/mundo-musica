@@ -1,62 +1,30 @@
-MUNDO MUSICA - FASE 7A3
-TOKEN SOLO + ADMIN MOVIL + PIN FACIL
+MUNDO MUSICA - FASE 7A4
+LOGO OFICIAL INTEGRADO
 
-REQUIERE APPS SCRIPT V3T.
+NO CAMBIAR APPS SCRIPT.
+MANTENER V3T.
 
-CLIENTE:
-- Ya NO ve Google Apps Script.
-- Ya NO ve URL técnica.
-- Ya NO escribe WhatsApp.
-- Solo escribe su TOKEN.
-- El token está vinculado internamente a su membresía y al WhatsApp
-  que el administrador registró.
-- Después del primer ingreso, el dispositivo recuerda la sesión.
+SE AGREGO EL LOGO OFICIAL EN:
+- Pantalla de ingreso del cliente.
+- Encabezado de escritorio.
+- Encabezado móvil.
+- Panel administrador.
+- Admin rápido para celular.
+- Icono de la pestaña del navegador.
 
-ADMIN:
-- Puedes crear un PIN fácil de 6 números.
-- La clave larga original sigue funcionando como respaldo.
-- El PIN se recuerda en el navegador hasta 1 año.
-- En incógnito NO puede persistir al cerrar las ventanas.
-
-ADMIN MOVIL RAPIDO:
-Ruta:
-  /admin/rapido
-
-Permite desde el celular:
-- Nombre.
-- WhatsApp.
-- 1, 3, 6 meses o 1 año.
-- Crear cliente + token.
-- Copiar token.
-- Enviar token directamente por WhatsApp.
-
-VERCEL:
-- /api/admin ahora usa MUNDO_MUSICA_APPS_SCRIPT_URL.
-- La página pública nunca permite configurar Apps Script.
-- /api/config ya no devuelve la URL.
+ARCHIVO DEL LOGO:
+public/logo-mundo-musica.png
 
 INSTALACION:
-A) Apps Script V3T
-1. Reemplazar TODO Código.gs.
-2. Ctrl+S.
-3. NO ejecutar setupBaseDeDatos.
-4. Nueva versión -> Implementar.
-
-B) Página
 1. Ctrl+C.
-2. Reemplazar app + public.
-3. npm run dev.
-4. Ctrl+F5.
+2. Extraer ZIP.
+3. Copiar app + public.
+4. Pegar en C:\Users\Usuario\Desktop\mundomusica
+5. Reemplazar archivos.
+6. npm run dev
+7. Ctrl+F5.
 
-C) ADMIN PIN
-1. Entra una vez con tu clave larga actual.
-2. Pulsa PIN.
-3. Crea un PIN de 6 números.
-4. Desde ese momento usa el PIN.
-
-D) CELULAR
-1. Abre:
-   https://TU-DOMINIO/admin/rapido
-2. Ingresa PIN una sola vez.
-3. En Chrome normal usa:
-   Agregar a pantalla de inicio.
+DESPUES:
+git add .
+git commit -m "Agregar logo oficial de Mundo Musica"
+git push

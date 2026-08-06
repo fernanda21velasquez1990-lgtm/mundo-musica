@@ -341,13 +341,20 @@ export default function AdminRapidoPage() {
     <main className="min-h-screen bg-[#07070b] p-4 text-white">
       <div className="mx-auto max-w-md pb-12">
         <div className="flex items-center justify-between py-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-fuchsia-300">
-              Mundo Música
-            </p>
-            <h1 className="mt-1 text-2xl font-black">
-              📱 Admin rápido
-            </h1>
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo-mundo-musica.png"
+              alt="Mundo Música"
+              className="h-auto w-16 shrink-0"
+            />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-400">
+                Mundo Música
+              </p>
+              <h1 className="mt-1 text-2xl font-black">
+                📱 Admin rápido
+              </h1>
+            </div>
           </div>
 
           <a
@@ -361,8 +368,12 @@ export default function AdminRapidoPage() {
         {!conectado ? (
           <section className="mt-5 rounded-3xl border border-purple-500/20 bg-[#111117] p-5">
             <div className="text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-fuchsia-500/10 text-3xl">
-                🔐
+              <div className="mx-auto flex items-center justify-center">
+                <img
+                  src="/logo-mundo-musica.png"
+                  alt="Mundo Música"
+                  className="h-auto w-28"
+                />
               </div>
 
               <h2 className="mt-4 text-xl font-black">

@@ -3765,8 +3765,12 @@ export default function Home() {
 
           <div className="mx-auto w-full max-w-md rounded-[32px] border border-purple-500/20 bg-[#111117] p-6 shadow-2xl md:p-8">
             <div className="text-center">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-purple-600 to-pink-500 text-4xl">
-                🎵
+              <div className="mx-auto flex items-center justify-center">
+                <img
+                  src="/logo-mundo-musica.png"
+                  alt="Mundo Música"
+                  className="h-auto w-44 drop-shadow-[0_0_28px_rgba(0,174,255,0.20)] md:w-48"
+                />
               </div>
 
               <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-purple-300">
@@ -3946,9 +3950,11 @@ export default function Home() {
       <header className="sticky top-0 z-40 hidden border-b border-white/10 bg-[#07070b]/95 backdrop-blur-xl md:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-pink-500 text-2xl">
-              🎵
-            </div>
+            <img
+              src="/logo-mundo-musica.png"
+              alt="Mundo Música"
+              className="h-auto w-16 shrink-0"
+            />
             <div>
               <h1 className="text-xl font-black">
                 MUNDO <span className="text-purple-400">MÚSICA</span>
@@ -3997,11 +4003,18 @@ export default function Home() {
       {/* MOBILE HEADER */}
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07070b]/95 px-4 py-3 backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-purple-400">
-                Mundo Música
-              </p>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <img
+              src="/logo-mundo-musica.png"
+              alt="Mundo Música"
+              className="h-auto w-11 shrink-0"
+            />
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-400">
+                  Mundo Música
+                </p>
               <span
                 className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
                   online
@@ -4020,7 +4033,8 @@ export default function Home() {
                 : seccionMovil === "BUSCAR"
                 ? "Buscar"
                 : "Tu música"}
-            </h1>
+              </h1>
+            </div>
           </div>
 
           <div className="flex gap-2">
