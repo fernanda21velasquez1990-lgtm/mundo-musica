@@ -1,7 +1,7 @@
-const SHELL_CACHE = "mundo-musica-shell-v10";
+const SHELL_CACHE = "mundo-musica-shell-v9";
 const AUDIO_CACHE = "mundo-musica-offline-audio-v1";
 const API_CACHE = "mundo-musica-api-v1";
-const IMAGE_CACHE = "mundo-musica-offline-portadas-v2";
+const IMAGE_CACHE = "mundo-musica-offline-portadas-v1";
 
 const API_MUSICA_KEY = "/api/musica";
 const API_CONFIG_KEY = "/api/config";

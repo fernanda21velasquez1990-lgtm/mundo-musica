@@ -227,6 +227,20 @@ const generosBase = [
   ["🎧", "Variada"],
 ];
 
+function claveGenero(valor: string) {
+  return String(valor || "Variada")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function iconoGenero(nombre: string) {
+  const clave = claveGenero(nombre);
+  const encontrado = generosBase.find(([, genero]) => claveGenero(genero) === clave);
+  return encontrado?.[0] || "🎧";
+}
+
 function tiempo(valor: number) {
   if (!Number.isFinite(valor) || valor < 0) return "0:00";
   const m = Math.floor(valor / 60);
@@ -316,7 +330,6 @@ export default function Home() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [generoSeleccionado, setGeneroSeleccionado] = useState("");
 
   const [actual, setActual] = useState<Cancion | null>(null);
   const [reproduciendo, setReproduciendo] = useState(false);
@@ -363,6 +376,7 @@ export default function Home() {
   const [favoritos, setFavoritos] = useState<string[]>([]);
   const [recientes, setRecientes] = useState<string[]>([]);
   const [vistaBiblioteca, setVistaBiblioteca] = useState<"PORTADAS" | "LISTA">("PORTADAS");
+  const [generosAbiertos, setGenerosAbiertos] = useState<Record<string, boolean>>({});
   const [seccionMovil, setSeccionMovil] = useState<"INICIO" | "BUSCAR" | "FAVORITOS" | "MIMUSICA">("INICIO");
   const [modoBusqueda, setModoBusqueda] = useState<"CANCIONES" | "ARTISTAS" | "ALBUMES" | "SOLICITAR">("CANCIONES");
 
@@ -2108,44 +2122,51 @@ export default function Home() {
     accesoOffline
   ]);
 
-  const generosDisponibles = useMemo(() => {
-    const mapa = new Map<string, { nombre: string; canciones: Cancion[] }>();
+  const filtradas = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return canciones;
 
-    canciones.forEach((c) => {
+    return canciones.filter((c) =>
+      [c.titulo, c.artista, c.album, c.genero]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [canciones, busqueda]);
+
+  const cancionesPorGenero = useMemo(() => {
+    const mapa = new Map<string, { clave: string; nombre: string; canciones: Cancion[] }>();
+
+    filtradas.forEach((c) => {
       const nombre = String(c.genero || "Variada").trim() || "Variada";
-      const clave = nombre.toLowerCase();
-      const actualGenero = mapa.get(clave);
+      const clave = claveGenero(nombre);
+      const existente = mapa.get(clave);
 
-      if (actualGenero) {
-        actualGenero.canciones.push(c);
+      if (existente) {
+        existente.canciones.push(c);
       } else {
-        mapa.set(clave, { nombre, canciones: [c] });
+        mapa.set(clave, { clave, nombre, canciones: [c] });
       }
     });
 
     return Array.from(mapa.values()).sort((a, b) =>
       a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
     );
-  }, [canciones]);
+  }, [filtradas]);
 
-  const filtradas = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    const genero = generoSeleccionado.trim().toLowerCase();
+  function alternarGenero(clave: string) {
+    setGenerosAbiertos((actuales) => ({
+      ...actuales,
+      [clave]: !actuales[clave],
+    }));
+  }
 
-    return canciones.filter((c) => {
-      const coincideGenero =
-        !genero || String(c.genero || "Variada").trim().toLowerCase() === genero;
-
-      const coincideBusqueda =
-        !q ||
-        [c.titulo, c.artista, c.album, c.genero]
-          .join(" ")
-          .toLowerCase()
-          .includes(q);
-
-      return coincideGenero && coincideBusqueda;
-    });
-  }, [canciones, busqueda, generoSeleccionado]);
+  function abrirGeneroDesdeInicio(nombre: string) {
+    const clave = claveGenero(nombre);
+    setBusqueda("");
+    setGenerosAbiertos((actuales) => ({ ...actuales, [clave]: true }));
+    ir("musica");
+  }
 
   function elegirAleatorioRadio<T extends { id: string }>(
     lista: T[],
@@ -3795,7 +3816,7 @@ export default function Home() {
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center">
                 <img
-                  src="/logo-mundo-musica.png?v=7a5"
+                  src="/logo-mundo-musica.png"
                   alt="Mundo Música"
                   className="h-auto w-44 drop-shadow-[0_0_28px_rgba(0,174,255,0.20)] md:w-48"
                 />
@@ -3979,9 +4000,9 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
             <img
-              src="/logo-mundo-musica.png?v=7a5"
+              src="/logo-mundo-musica.png"
               alt="Mundo Música"
-              className="h-auto w-16 shrink-0"
+              className="h-auto w-20 shrink-0"
             />
             <div>
               <h1 className="text-xl font-black">
@@ -4033,9 +4054,9 @@ export default function Home() {
         <div className="flex items-center justify-between">
           <div className="flex min-w-0 items-center gap-2.5">
             <img
-              src="/logo-mundo-musica.png?v=7a5"
+              src="/logo-mundo-musica.png"
               alt="Mundo Música"
-              className="h-auto w-11 shrink-0"
+              className="h-auto w-14 shrink-0"
             />
 
             <div className="min-w-0">
@@ -4138,19 +4159,13 @@ export default function Home() {
           <span className="text-xl">🔎</span>
           <input
             value={busqueda}
-            onChange={(e) => {
-              setBusqueda(e.target.value);
-              if (e.target.value) setGeneroSeleccionado("");
-            }}
+            onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar canción, artista o género"
             className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500 md:h-12 md:text-base"
           />
           {busqueda && (
             <button
-              onClick={() => {
-                setBusqueda("");
-                setGeneroSeleccionado("");
-              }}
+              onClick={() => setBusqueda("")}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-sm"
             >
               ✕
@@ -4388,30 +4403,19 @@ export default function Home() {
       <section className={`${seccionMovil === "INICIO" ? "block" : "hidden"} mx-auto max-w-7xl px-4 pt-7 md:block md:px-5 md:pt-2`}>
         <h3 className="mb-3 text-lg font-black md:text-2xl">Explora por género</h3>
         <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {generosDisponibles.map((grupo) => {
-            const icono =
-              generosBase.find(([, nombre]) =>
-                nombre.toLowerCase() === grupo.nombre.toLowerCase()
-              )?.[0] || "🎵";
-
-            return (
-              <button
-                key={grupo.nombre}
-                onClick={() => {
-                  setBusqueda("");
-                  setGeneroSeleccionado(grupo.nombre);
-                  ir("musica");
-                }}
-                className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold"
-              >
-                <span>{icono}</span>
-                {grupo.nombre}
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-400">
-                  {grupo.canciones.length}
-                </span>
-              </button>
-            );
-          })}
+          {(cancionesPorGenero.length
+            ? cancionesPorGenero.map((grupo) => [iconoGenero(grupo.nombre), grupo.nombre] as const)
+            : generosBase
+          ).map(([icono, nombre]) => (
+            <button
+              key={nombre}
+              onClick={() => abrirGeneroDesdeInicio(nombre)}
+              className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold"
+            >
+              <span>{icono}</span>
+              {nombre}
+            </button>
+          ))}
         </div>
       </section>
 
@@ -4830,19 +4834,14 @@ export default function Home() {
         <div className="mb-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-purple-400">
-              {generoSeleccionado ? "Género seleccionado" : "Biblioteca organizada"}
+              Para ti
             </p>
             <h3 className="mt-1 text-2xl font-black md:text-4xl">
-              {generoSeleccionado ? generoSeleccionado : busqueda ? "Resultados" : "Música por géneros"}
+              Música por género
             </h3>
-            {generoSeleccionado && (
-              <button
-                onClick={() => setGeneroSeleccionado("")}
-                className="mt-3 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-300"
-              >
-                ← Ver todos los géneros
-              </button>
-            )}
+            <p className="mt-2 text-sm text-gray-500">
+              Abre un género y encontrarás todas sus canciones organizadas dentro.
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -4904,49 +4903,6 @@ export default function Home() {
           </div>
         )}
 
-        {!busqueda && !generoSeleccionado && !cargando && generosDisponibles.length > 0 && (
-          <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-            {generosDisponibles.map((grupo) => {
-              const portada = grupo.canciones.find((c) => c.portada)?.portada || "";
-              const icono =
-                generosBase.find(([, nombre]) =>
-                  nombre.toLowerCase() === grupo.nombre.toLowerCase()
-                )?.[0] || "🎵";
-
-              return (
-                <button
-                  key={grupo.nombre}
-                  onClick={() => setGeneroSeleccionado(grupo.nombre)}
-                  className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] text-left transition hover:border-purple-500/40 hover:bg-purple-500/[0.06] md:rounded-3xl"
-                >
-                  <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-purple-900 via-fuchsia-900 to-pink-700">
-                    {portada ? (
-                      <img
-                        src={portada}
-                        alt={grupo.nombre}
-                        className="h-full w-full object-cover opacity-75 transition group-hover:scale-105"
-                      />
-                    ) : (
-                      <span className="flex h-full items-center justify-center text-5xl">{icono}</span>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                    <span className="absolute bottom-3 left-3 text-3xl">{icono}</span>
-                  </div>
-                  <div className="p-4">
-                    <p className="truncate text-lg font-black md:text-xl">{grupo.nombre}</p>
-                    <p className="mt-1 text-xs text-gray-400">
-                      {grupo.canciones.length} canción{grupo.canciones.length === 1 ? "" : "es"}
-                    </p>
-                    <span className="mt-3 inline-flex rounded-full bg-purple-500/15 px-3 py-1.5 text-[11px] font-black text-purple-300">
-                      Abrir género →
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         {cargando && canciones.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-gray-400">
             🎵 Cargando canciones...
@@ -4959,166 +4915,173 @@ export default function Home() {
           </div>
         )}
 
-        {!cargando && !error && (busqueda || generoSeleccionado) && filtradas.length === 0 && (
+        {!cargando && !error && filtradas.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-gray-400">
             No encontramos canciones.
           </div>
         )}
 
-        {(busqueda || generoSeleccionado) && (vistaBiblioteca === "PORTADAS" ? (
-          <div className="grid grid-cols-2 gap-3 pb-3 md:grid-cols-3 lg:grid-cols-4">
-            {filtradas.map((c) => (
-              <article
-                key={c.id}
-                className="rounded-2xl border border-white/10 bg-white/[0.035] p-3 md:rounded-3xl md:p-4"
+        <div className="space-y-3">
+          {cancionesPorGenero.map((grupo) => {
+            const abierto = Boolean(busqueda.trim()) || Boolean(generosAbiertos[grupo.clave]);
+
+            return (
+              <div
+                key={grupo.clave}
+                className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] md:rounded-3xl"
               >
                 <button
-                  onClick={() => seleccionar(c)}
-                  className="relative block aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-purple-800 to-pink-600 md:rounded-2xl"
+                  onClick={() => alternarGenero(grupo.clave)}
+                  className="flex w-full items-center gap-3 px-4 py-4 text-left md:px-5 md:py-5"
                 >
-                  {c.portada ? (
-                    <img
-                      src={c.portada}
-                      alt={c.titulo}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-full items-center justify-center text-5xl">
-                      🎵
-                    </span>
-                  )}
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-purple-500/10 text-2xl">
+                    {iconoGenero(grupo.nombre)}
+                  </span>
 
-                  <span className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-white font-bold text-black shadow-xl">
-                    {actual?.id === c.id && reproduciendo ? "⏸" : "▶"}
+                  <div className="min-w-0 flex-1">
+                    <h4 className="truncate text-lg font-black md:text-2xl">
+                      {grupo.nombre}
+                    </h4>
+                    <p className="text-xs text-gray-500 md:text-sm">
+                      {grupo.canciones.length} {grupo.canciones.length === 1 ? "canción" : "canciones"}
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-white/5 px-3 py-2 text-xs font-black text-purple-300">
+                    {abierto ? "Cerrar ▲" : "Abrir ▼"}
                   </span>
                 </button>
 
-                <div className="pt-3">
-                  <h4 className="truncate font-black md:text-lg">{c.titulo}</h4>
-                  <p className="mt-1 truncate text-xs text-gray-400 md:text-sm">
-                    {c.artista}
-                  </p>
+                {abierto && (
+                  <div className="border-t border-white/10 p-3 md:p-4">
+                    {vistaBiblioteca === "PORTADAS" ? (
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                        {grupo.canciones.map((c) => (
+                          <article
+                            key={c.id}
+                            className="min-w-0 rounded-2xl bg-white/[0.035] p-3 md:rounded-3xl md:border md:border-white/10 md:p-4"
+                          >
+                            <button
+                              onClick={() => seleccionar(c)}
+                              className="relative block aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-purple-800 to-pink-600 md:rounded-2xl"
+                            >
+                              {c.portada ? (
+                                <img
+                                  src={c.portada}
+                                  alt={c.titulo}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-full items-center justify-center text-5xl">🎵</span>
+                              )}
 
-                  <div className="mt-1 flex items-center gap-2">
-                    <p className="text-[11px] font-bold text-gray-600">
-                      ▶ {Number(c.reproducciones || 0)} reproducciones
-                    </p>
+                              <span className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-white font-bold text-black shadow-xl md:bottom-3 md:right-3 md:h-11 md:w-11">
+                                {actual?.id === c.id && reproduciendo ? "⏸" : "▶"}
+                              </span>
+                            </button>
 
-                    {String(c.karaoke || "").toUpperCase() === "SI" &&
-                      c.letraLrc && (
-                        <span className="rounded-full bg-pink-500/10 px-2 py-0.5 text-[9px] font-black text-pink-300">
-                          🎤 Karaoke
-                        </span>
-                      )}
-                  </div>
+                            <div className="pt-3">
+                              <h4 className="truncate text-sm font-black md:text-lg">{c.titulo}</h4>
+                              <p className="mt-1 truncate text-xs text-gray-400 md:text-sm">{c.artista}</p>
+                              <p className="mt-1 truncate text-[10px] text-gray-600 md:text-xs">
+                                {c.album || grupo.nombre}
+                              </p>
 
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <span className="truncate rounded-full bg-purple-500/10 px-2.5 py-1 text-[11px] font-bold text-purple-300">
-                      {c.genero || "Variada"}
-                    </span>
+                              <div className="mt-3 flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-bold text-gray-600">
+                                  ▶ {Number(c.reproducciones || 0)}
+                                </span>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => guardarUnaOffline(c)}
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${
-                          offlineIds.includes(c.driveId)
-                            ? "bg-green-500/10 text-green-300"
-                            : "bg-white/5"
-                        }`}
-                        title="Guardar sin internet"
-                      >
-                        {offlineIds.includes(c.driveId) ? "✓" : "📥"}
-                      </button>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => guardarUnaOffline(c)}
+                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${
+                                      offlineIds.includes(c.driveId)
+                                        ? "bg-green-500/10 text-green-300"
+                                        : "bg-white/5"
+                                    }`}
+                                    title="Guardar sin internet"
+                                  >
+                                    {offlineIds.includes(c.driveId) ? "✓" : "📥"}
+                                  </button>
 
-                      {c.descargable === "SI" && c.driveId && (
-                        <a
-                          href={urlDownloadMiembro(
-                            c.driveId,
-                            c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
-                          )}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-xs"
-                          title="Descargar MP3"
-                        >
-                          ⬇️
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]">
-            {filtradas.map((c, index) => (
-              <div
-                key={c.id}
-                className="flex items-center gap-3 border-b border-white/10 p-3 last:border-b-0 md:p-4"
-              >
-                <button
-                  onClick={() => seleccionar(c)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-sm font-bold text-gray-400"
-                >
-                  {actual?.id === c.id && reproduciendo ? "⏸" : index + 1}
-                </button>
+                                  {c.descargable === "SI" && c.driveId && (
+                                    <a
+                                      href={urlDownloadMiembro(
+                                        c.driveId,
+                                        c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
+                                      )}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-xs"
+                                      title="Descargar MP3"
+                                    >
+                                      ⬇️
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/10">
+                        {grupo.canciones.map((c, index) => (
+                          <div
+                            key={c.id}
+                            className="flex items-center gap-3 border-b border-white/10 p-3 last:border-b-0 md:p-4"
+                          >
+                            <button
+                              onClick={() => seleccionar(c)}
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-sm font-bold text-gray-400"
+                            >
+                              {actual?.id === c.id && reproduciendo ? "⏸" : index + 1}
+                            </button>
 
-                <button
-                  onClick={() => seleccionar(c)}
-                  className="min-w-0 flex-1 text-left"
-                >
-                  <p className="truncate text-sm font-black md:text-base">
-                    {c.titulo}
-                  </p>
-                  <p className="truncate text-xs text-gray-500">
-                    {c.artista}
-                    {c.album ? ` • ${c.album}` : ""}
-                  </p>
-                  <div className="mt-0.5 flex items-center gap-2">
-                    <p className="text-[10px] font-bold text-gray-600">
-                      ▶ {Number(c.reproducciones || 0)} reproducciones
-                    </p>
-                    {String(c.karaoke || "").toUpperCase() === "SI" &&
-                      c.letraLrc && (
-                        <span className="text-[9px] font-black text-pink-300">
-                          🎤 Karaoke
-                        </span>
-                      )}
-                  </div>
-                </button>
+                            <button
+                              onClick={() => seleccionar(c)}
+                              className="min-w-0 flex-1 text-left"
+                            >
+                              <p className="truncate text-sm font-black md:text-base">{c.titulo}</p>
+                              <p className="truncate text-xs text-gray-500">
+                                {c.artista}{c.album ? ` • ${c.album}` : ""}
+                              </p>
+                            </button>
 
-                <span className="hidden rounded-full bg-purple-500/10 px-2.5 py-1 text-[10px] font-bold text-purple-300 sm:block">
-                  {c.genero || "Variada"}
-                </span>
+                            <button
+                              onClick={() => guardarUnaOffline(c)}
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs ${
+                                offlineIds.includes(c.driveId)
+                                  ? "bg-green-500/10 text-green-300"
+                                  : "bg-white/5"
+                              }`}
+                              title="Guardar sin internet"
+                            >
+                              {offlineIds.includes(c.driveId) ? "✓" : "📥"}
+                            </button>
 
-                <button
-                  onClick={() => guardarUnaOffline(c)}
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs ${
-                    offlineIds.includes(c.driveId)
-                      ? "bg-green-500/10 text-green-300"
-                      : "bg-white/5"
-                  }`}
-                  title="Guardar sin internet"
-                >
-                  {offlineIds.includes(c.driveId) ? "✓" : "📥"}
-                </button>
-
-                {c.descargable === "SI" && c.driveId && (
-                  <a
-                    href={urlDownloadMiembro(
-                      c.driveId,
-                      c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
+                            {c.descargable === "SI" && c.driveId && (
+                              <a
+                                href={urlDownloadMiembro(
+                                  c.driveId,
+                                  c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
+                                )}
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-xs text-blue-300"
+                                title="Descargar MP3"
+                              >
+                                ⬇
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-xs text-blue-300"
-                    title="Descargar MP3"
-                  >
-                    ⬇
-                  </a>
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </section>
 
       {/* SOLICITAR CANCION EN DESKTOP */}
@@ -5138,8 +5101,7 @@ export default function Home() {
             </p>
 
             <div className="mt-6 rounded-2xl bg-white/[0.04] p-4 text-sm text-gray-400">
-              Si una canción todavía no está disponible, envía la solicitud y el
-              administrador podrá agregarla a la biblioteca.
+              Si no está en el catálogo, envía la solicitud y el administrador podrá revisarla para agregarla.
             </div>
           </div>
 

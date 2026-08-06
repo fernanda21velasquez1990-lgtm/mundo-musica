@@ -142,25 +142,22 @@ type FiltroEstado =
   | "OCULTAS";
 
 const GENEROS_ADMIN_BASE = [
-  "Reggaetón",
-  "Salsa",
-  "Romántica",
+  "Bachata",
+  "Balada",
+  "Bolero",
+  "Cristiana",
+  "Cumbia",
+  "Electrónica",
+  "Gaita",
+  "Hip Hop",
+  "Jazz",
   "Merengue",
   "Pop",
-  "Bachata",
-  "Vallenato",
-  "Cumbia",
+  "Reggaetón",
   "Rock",
-  "Balada",
-  "Cristiana",
-  "Gospel",
-  "Instrumental",
-  "Electrónica",
-  "Hip Hop",
-  "Rap",
-  "Jazz",
-  "Clásica",
-  "Infantil",
+  "Salsa",
+  "Urbano",
+  "Vallenato",
   "Variada",
 ];
 
@@ -387,6 +384,53 @@ export default function AdminPage() {
   const [guardando, setGuardando] = useState(false);
   const [mensajeEdicion, setMensajeEdicion] = useState("");
 
+  const generosAdminOpciones = useMemo(() => {
+    const valores = new Set<string>(GENEROS_ADMIN_BASE);
+    canciones.forEach((c) => {
+      const genero = String(c.genero || "").trim();
+      if (genero) valores.add(genero);
+    });
+    if (editando?.genero?.trim()) valores.add(editando.genero.trim());
+    return Array.from(valores).sort((a, b) =>
+      a.localeCompare(b, "es", { sensitivity: "base" })
+    );
+  }, [canciones, editando?.genero]);
+
+  const gruposCarpetaAdmin = useMemo(() => {
+    const mapa = new Map<string, {
+      genero: string;
+      total: number;
+      publicadas: number;
+      descargables: number;
+      radio: number;
+      conPortada: number;
+    }>();
+
+    canciones.forEach((c) => {
+      const genero = String(c.genero || "Variada").trim() || "Variada";
+      const clave = genero.toLocaleLowerCase("es");
+      const actual = mapa.get(clave) || {
+        genero,
+        total: 0,
+        publicadas: 0,
+        descargables: 0,
+        radio: 0,
+        conPortada: 0,
+      };
+
+      actual.total += 1;
+      if (String(c.publicada || "").toUpperCase() === "SI") actual.publicadas += 1;
+      if (String(c.descargable || "").toUpperCase() === "SI") actual.descargables += 1;
+      if (String(c.radio || "").toUpperCase() === "SI") actual.radio += 1;
+      if (String(c.portada || "").trim()) actual.conPortada += 1;
+      mapa.set(clave, actual);
+    });
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.genero.localeCompare(b.genero, "es", { sensitivity: "base" })
+    );
+  }, [canciones]);
+
   const [editorKaraokeAbierto, setEditorKaraokeAbierto] = useState(false);
   const [textoKaraokePlano, setTextoKaraokePlano] = useState("");
   const [lineasEditorKaraoke, setLineasEditorKaraoke] = useState<LineaEditorKaraoke[]>([]);
@@ -409,6 +453,12 @@ export default function AdminPage() {
     preparadasWeb: number;
     erroresPermiso: number;
   } | null>(null);
+
+  const [loteProcesando, setLoteProcesando] = useState("");
+  const [mensajeLote, setMensajeLote] = useState("");
+  const [generosDestinoLote, setGenerosDestinoLote] = useState<Record<string, string>>({});
+  const [generoPortadaLote, setGeneroPortadaLote] = useState("");
+  const inputPortadaLoteRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const local =
@@ -1410,6 +1460,124 @@ export default function AdminPage() {
     }
   }
 
+  async function aplicarCambioLote(
+    genero: string,
+    cambios: Record<string, unknown>,
+    etiqueta: string
+  ) {
+    const clave = token.trim();
+
+    if (!clave) {
+      setMostrarLogin(true);
+      return;
+    }
+
+    try {
+      setLoteProcesando(`${genero}:${etiqueta}`);
+      setMensajeLote(`⏳ Aplicando cambio a todas las canciones de ${genero}...`);
+
+      const d = await apiAdmin({
+        accion: "actualizarlotecanciones",
+        token: clave,
+        genero,
+        ...cambios,
+      });
+
+      if (Array.isArray(d.canciones)) {
+        setCanciones(d.canciones);
+      } else {
+        await cargarCancionesAdmin(clave);
+      }
+
+      setMensajeLote(`✅ ${d.mensaje || "Cambio aplicado correctamente."}`);
+    } catch (e) {
+      console.error(e);
+      setMensajeLote(
+        e instanceof Error
+          ? `❌ ${e.message}`
+          : "❌ No se pudo actualizar la carpeta."
+      );
+    } finally {
+      setLoteProcesando("");
+    }
+  }
+
+  function elegirPortadaParaLote(genero: string) {
+    setGeneroPortadaLote(genero);
+    inputPortadaLoteRef.current?.click();
+  }
+
+  async function seleccionarPortadaLoteDesdePC(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const archivo = e.target.files?.[0];
+    const genero = generoPortadaLote;
+
+    if (!archivo || !genero) {
+      e.target.value = "";
+      return;
+    }
+
+    const permitidos = ["image/jpeg", "image/png", "image/webp"];
+
+    if (!permitidos.includes(archivo.type)) {
+      setMensajeLote("⚠️ Usa una imagen JPG, PNG o WEBP.");
+      e.target.value = "";
+      return;
+    }
+
+    if (archivo.size > 2.5 * 1024 * 1024) {
+      setMensajeLote("⚠️ La portada debe pesar máximo 2.5 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      setLoteProcesando(`${genero}:portada`);
+      setMensajeLote(`⏳ Subiendo una portada para todas las canciones de ${genero}...`);
+
+      const base64 = await archivoABase64(archivo);
+
+      const subida = await apiAdmin({
+        accion: "subirportada",
+        token: token.trim(),
+        cancionId: `LOTE-${genero}`,
+        nombreArchivo: archivo.name,
+        mimeType: archivo.type,
+        base64,
+      });
+
+      const url = String(subida?.portada?.url || "");
+
+      if (!url) {
+        throw new Error("No se recibió la URL de la portada.");
+      }
+
+      const d = await apiAdmin({
+        accion: "actualizarlotecanciones",
+        token: token.trim(),
+        genero,
+        portada: url,
+      });
+
+      if (Array.isArray(d.canciones)) setCanciones(d.canciones);
+      else await cargarCancionesAdmin(token.trim());
+
+      setMensajeLote(`✅ Portada aplicada a todas las canciones de ${genero}.`);
+    } catch (e) {
+      console.error(e);
+      setMensajeLote(
+        e instanceof Error
+          ? `❌ ${e.message}`
+          : "❌ No se pudo aplicar la portada."
+      );
+    } finally {
+      setLoteProcesando("");
+      setGeneroPortadaLote("");
+      e.target.value = "";
+    }
+  }
+
   function prepararLineasDesdeTexto(
     texto: string
   ) {
@@ -1894,31 +2062,6 @@ export default function AdminPage() {
     }
   }
 
-  const generosAdmin = useMemo(() => {
-    const mapa = new Map<string, string>();
-    [...GENEROS_ADMIN_BASE, ...canciones.map((c) => c.genero)]
-      .map((x) => String(x || "").trim())
-      .filter(Boolean)
-      .forEach((x) => mapa.set(x.toLowerCase(), x));
-    return Array.from(mapa.values()).sort((a, b) =>
-      a.localeCompare(b, "es", { sensitivity: "base" })
-    );
-  }, [canciones]);
-
-  const artistasAdmin = useMemo(() =>
-    Array.from(
-      new Set(canciones.map((c) => String(c.artista || "").trim()).filter(Boolean))
-    ).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
-    [canciones]
-  );
-
-  const albumesAdmin = useMemo(() =>
-    Array.from(
-      new Set(canciones.map((c) => String(c.album || "").trim()).filter(Boolean))
-    ).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
-    [canciones]
-  );
-
   const publicadas = canciones.filter(
     (c) => String(c.publicada).toUpperCase() === "SI"
   ).length;
@@ -1985,7 +2128,7 @@ export default function AdminPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <img
-              src="/logo-mundo-musica.png?v=7a5"
+              src="/logo-mundo-musica.png"
               alt="Mundo Música"
               className="h-auto w-14 shrink-0 md:w-16"
             />
@@ -2285,6 +2428,163 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
+        <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 md:p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+            ⚡ Importación rápida por carpetas
+          </p>
+          <p className="mt-2 text-sm leading-6 text-gray-300">
+            Dentro de <b>01 - MUSICA</b> crea una carpeta con el nombre del género, por ejemplo
+            <b> SALSA</b>. Mete allí todos los MP3 y <b>una sola portada.jpg</b>. También puedes crear
+            subcarpetas para álbumes. Al pulsar <b>Sincronizar Drive</b>, el sistema importa todo,
+            coloca el género, el álbum y comparte la misma portada automáticamente.
+          </p>
+        </div>
+
+        <input
+          ref={inputPortadaLoteRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={seleccionarPortadaLoteDesdePC}
+          className="hidden"
+        />
+
+        <div className="mt-5 rounded-3xl border border-emerald-500/20 bg-emerald-500/[0.035] p-4 md:p-5">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+                📁 Gestión por carpeta / género
+              </p>
+              <h4 className="mt-1 text-xl font-black">Administra cientos de canciones de una vez</h4>
+              <p className="mt-1 text-sm text-gray-400">
+                Ya no tienes que abrir 200 canciones. Elige una carpeta y aplica el cambio a todas.
+              </p>
+            </div>
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs font-black text-gray-300">
+              {gruposCarpetaAdmin.length} carpetas / géneros
+            </span>
+          </div>
+
+          {mensajeLote && (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3 text-sm">
+              {mensajeLote}
+            </div>
+          )}
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            {gruposCarpetaAdmin.map((grupo) => {
+              const ocupada = loteProcesando.startsWith(`${grupo.genero}:`);
+              const destino = generosDestinoLote[grupo.genero] || grupo.genero;
+
+              return (
+                <article
+                  key={grupo.genero}
+                  className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-black">📂 {grupo.genero}</p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        {grupo.total} canciones • {grupo.publicadas} publicadas • {grupo.conPortada} con portada
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-purple-500/10 px-3 py-1 text-xs font-black text-purple-300">
+                      {grupo.total}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] sm:text-xs">
+                    <div className="rounded-xl bg-white/[0.035] p-2">
+                      <span className="block text-gray-500">Publicadas</span>
+                      <b>{grupo.publicadas}/{grupo.total}</b>
+                    </div>
+                    <div className="rounded-xl bg-white/[0.035] p-2">
+                      <span className="block text-gray-500">Descargas</span>
+                      <b>{grupo.descargables}/{grupo.total}</b>
+                    </div>
+                    <div className="rounded-xl bg-white/[0.035] p-2">
+                      <span className="block text-gray-500">Radio</span>
+                      <b>{grupo.radio}/{grupo.total}</b>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <button
+                      onClick={() => aplicarCambioLote(grupo.genero, { publicada: "SI" }, "publicar")}
+                      disabled={ocupada}
+                      className="h-10 rounded-xl bg-emerald-500/15 px-2 text-xs font-black text-emerald-300 disabled:opacity-50"
+                    >
+                      ✅ Publicar todas
+                    </button>
+                    <button
+                      onClick={() => aplicarCambioLote(grupo.genero, { publicada: "NO" }, "ocultar")}
+                      disabled={ocupada}
+                      className="h-10 rounded-xl bg-red-500/10 px-2 text-xs font-black text-red-300 disabled:opacity-50"
+                    >
+                      🚫 Ocultar todas
+                    </button>
+                    <button
+                      onClick={() => elegirPortadaParaLote(grupo.genero)}
+                      disabled={ocupada}
+                      className="h-10 rounded-xl bg-purple-500/15 px-2 text-xs font-black text-purple-300 disabled:opacity-50"
+                    >
+                      🖼️ Una portada
+                    </button>
+                    <button
+                      onClick={() => aplicarCambioLote(grupo.genero, { descargable: "SI" }, "descarga-si")}
+                      disabled={ocupada}
+                      className="h-10 rounded-xl bg-blue-500/10 px-2 text-xs font-black text-blue-300 disabled:opacity-50"
+                    >
+                      ⬇️ Descargas SI
+                    </button>
+                    <button
+                      onClick={() => aplicarCambioLote(grupo.genero, { radio: "SI" }, "radio-si")}
+                      disabled={ocupada}
+                      className="h-10 rounded-xl bg-pink-500/10 px-2 text-xs font-black text-pink-300 disabled:opacity-50"
+                    >
+                      📻 Radio SI
+                    </button>
+                    <button
+                      onClick={() => aplicarCambioLote(grupo.genero, { radio: "NO" }, "radio-no")}
+                      disabled={ocupada}
+                      className="h-10 rounded-xl bg-white/5 px-2 text-xs font-black text-gray-300 disabled:opacity-50"
+                    >
+                      🔇 Radio NO
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <select
+                      value={destino}
+                      onChange={(e) =>
+                        setGenerosDestinoLote((prev) => ({
+                          ...prev,
+                          [grupo.genero]: e.target.value,
+                        }))
+                      }
+                      className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-[#17171d] px-3 text-xs outline-none"
+                    >
+                      {generosAdminOpciones.map((genero) => (
+                        <option key={genero} value={genero}>{genero}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => aplicarCambioLote(grupo.genero, { generoNuevo: destino }, "genero")}
+                      disabled={ocupada || !destino || destino === grupo.genero}
+                      className="h-10 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 text-xs font-black text-cyan-300 disabled:opacity-40"
+                    >
+                      Cambiar género a todas
+                    </button>
+                  </div>
+
+                  {ocupada && (
+                    <p className="mt-3 text-xs font-bold text-yellow-300">⏳ Procesando esta carpeta...</p>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </div>
 
         {cargando && (
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-gray-400">
@@ -4920,66 +5220,49 @@ export default function AdminPage() {
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-gray-300">Título</span>
-                <input
-                  value={editando.titulo}
-                  onChange={(e) => setEditando({ ...editando, titulo: e.target.value })}
-                  className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
-                />
-              </label>
+              {[
+                ["Título", "titulo"],
+                ["Artista", "artista"],
+                ["Álbum", "album"],
+              ].map(([label, key]) => (
+                <label key={key} className="block">
+                  <span className="mb-2 block text-sm font-bold text-gray-300">
+                    {label}
+                  </span>
+                  <input
+                    value={String(editando[key as keyof FormEdicion])}
+                    onChange={(e) =>
+                      setEditando({
+                        ...editando,
+                        [key]: e.target.value,
+                      })
+                    }
+                    className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
+                  />
+                </label>
+              ))}
 
               <label className="block">
-                <span className="mb-2 block text-sm font-bold text-gray-300">Artista</span>
-                <input
-                  list="mundo-musica-artistas"
-                  value={editando.artista}
-                  onChange={(e) => setEditando({ ...editando, artista: e.target.value })}
-                  placeholder="Escribe o selecciona"
-                  className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
-                />
-                <datalist id="mundo-musica-artistas">
-                  {artistasAdmin.map((artista) => (
-                    <option key={artista} value={artista} />
-                  ))}
-                </datalist>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-gray-300">Álbum / carpeta</span>
-                <input
-                  list="mundo-musica-albumes"
-                  value={editando.album}
-                  onChange={(e) => setEditando({ ...editando, album: e.target.value })}
-                  placeholder="Escribe o selecciona"
-                  className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
-                />
-                <datalist id="mundo-musica-albumes">
-                  {albumesAdmin.map((album) => (
-                    <option key={album} value={album} />
-                  ))}
-                </datalist>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-gray-300">Género</span>
+                <span className="mb-2 block text-sm font-bold text-gray-300">
+                  Género / categoría
+                </span>
                 <select
-                  value={editando.genero}
-                  onChange={(e) => setEditando({ ...editando, genero: e.target.value })}
-                  className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
+                  value={editando.genero || "Variada"}
+                  onChange={(e) =>
+                    setEditando({ ...editando, genero: e.target.value })
+                  }
+                  className="h-11 w-full rounded-xl border border-white/10 bg-[#17171d] px-3 outline-none"
                 >
-                  <option value="">Seleccionar género</option>
-                  {generosAdmin.map((genero) => (
-                    <option key={genero} value={genero}>{genero}</option>
+                  {generosAdminOpciones.map((genero) => (
+                    <option key={genero} value={genero}>
+                      {genero}
+                    </option>
                   ))}
                 </select>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Ya no tienes que escribir el género cada vez: solo selecciónalo.
+                </p>
               </label>
-            </div>
-
-            <div className="mt-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.06] p-4 text-xs leading-5 text-cyan-100/80">
-              ⚡ Carga rápida: con la nueva sincronización puedes subir una carpeta completa a Drive.
-              Si la carpeta incluye una imagen JPG, PNG o WEBP, esa portada se aplicará automáticamente
-              a todas las canciones de esa carpeta.
             </div>
 
             <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-4">
