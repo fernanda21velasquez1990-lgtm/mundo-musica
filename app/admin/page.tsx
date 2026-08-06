@@ -287,7 +287,7 @@ function leerCookie(nombre: string) {
 function guardarClaveLocal(clave: string) {
   localStorage.setItem("mundo_musica_admin_token", clave);
   document.cookie =
-    `mundo_musica_admin_token=${encodeURIComponent(clave)}; Max-Age=${60 * 60 * 24 * 180}; Path=/; SameSite=Lax`;
+    `mundo_musica_admin_token=${encodeURIComponent(clave)}; Max-Age=${60 * 60 * 24 * 365}; Path=/; SameSite=Lax`;
 }
 
 export default function AdminPage() {
@@ -356,6 +356,9 @@ export default function AdminPage() {
   const [mostrarLogin, setMostrarLogin] = useState(false);
   const [estadoClave, setEstadoClave] = useState("");
   const [probandoClave, setProbandoClave] = useState(false);
+  const [nuevoPinAdmin, setNuevoPinAdmin] = useState("");
+  const [guardandoPinAdmin, setGuardandoPinAdmin] = useState(false);
+  const [mensajePinAdmin, setMensajePinAdmin] = useState("");
 
   const [editando, setEditando] = useState<FormEdicion | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -524,6 +527,59 @@ export default function AdminPage() {
       );
     } finally {
       setProbandoClave(false);
+    }
+  }
+
+  async function guardarPinAdmin() {
+    const pin =
+      nuevoPinAdmin
+        .replace(
+          /\D/g,
+          ""
+        );
+
+    if (
+      pin.length !== 6
+    ) {
+      setMensajePinAdmin(
+        "⚠️ El PIN debe tener exactamente 6 números."
+      );
+      return;
+    }
+
+    try {
+      setGuardandoPinAdmin(true);
+      setMensajePinAdmin("");
+
+      const d =
+        await apiAdmin({
+          accion:
+            "actualizarpinadmin",
+          token:
+            token.trim(),
+          pin,
+        });
+
+      /*
+        Desde este momento usamos el PIN corto como
+        credencial principal de este dispositivo.
+      */
+      setToken(pin);
+      guardarClaveLocal(pin);
+      setNuevoPinAdmin("");
+
+      setMensajePinAdmin(
+        `✅ ${d.mensaje || "PIN actualizado."}`
+      );
+
+    } catch (e) {
+      setMensajePinAdmin(
+        e instanceof Error
+          ? `❌ ${e.message}`
+          : "❌ No se pudo guardar el PIN."
+      );
+    } finally {
+      setGuardandoPinAdmin(false);
     }
   }
 
@@ -1893,12 +1949,19 @@ export default function AdminPage() {
               </div>
             )}
 
+            <a
+              href="/admin/rapido"
+              className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/10 px-3 py-2 text-xs font-black text-fuchsia-200 md:text-sm"
+            >
+              📱 <span className="hidden md:inline">Token rápido</span>
+            </a>
+
             <button
               onClick={() => setMostrarLogin(true)}
               className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold md:text-sm"
             >
               🔐
-              <span className="hidden sm:inline"> Clave</span>
+              <span className="hidden sm:inline"> PIN</span>
             </button>
 
             <a
@@ -4630,7 +4693,7 @@ export default function AdminPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-purple-400">
                   Seguridad
                 </p>
-                <h3 className="mt-2 text-2xl font-black">Clave del administrador</h3>
+                <h3 className="mt-2 text-2xl font-black">PIN del administrador</h3>
               </div>
 
               {conectado && (
@@ -4641,8 +4704,8 @@ export default function AdminPage() {
             </div>
 
             <p className="mt-3 text-sm leading-6 text-gray-400">
-              Solo se solicita la primera vez. Después el navegador la recuerda
-              y el panel se conecta automáticamente.
+              Usa tu clave actual una sola vez. Luego crea un PIN de 6 números
+              y este dispositivo lo recordará automáticamente por hasta 1 año.
             </p>
 
             <div className="mt-5 flex gap-2">
@@ -4650,7 +4713,7 @@ export default function AdminPage() {
                 type={mostrandoClave ? "text" : "password"}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder="Clave del panel"
+                placeholder="PIN o clave actual"
                 className="h-12 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 outline-none"
               />
               <button
@@ -4660,6 +4723,49 @@ export default function AdminPage() {
                 {mostrandoClave ? "🙈" : "👁️"}
               </button>
             </div>
+
+            {conectado && (
+              <div className="mt-5 rounded-2xl border border-fuchsia-500/20 bg-fuchsia-500/[0.06] p-4">
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-fuchsia-300">
+                  Crear / cambiar PIN fácil
+                </p>
+                <p className="mt-2 text-xs leading-5 text-gray-400">
+                  Elige 6 números fáciles para ti. La clave larga seguirá funcionando como respaldo.
+                </p>
+
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={nuevoPinAdmin}
+                    onChange={(e) =>
+                      setNuevoPinAdmin(
+                        e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 6)
+                      )
+                    }
+                    inputMode="numeric"
+                    placeholder="Ej: 482731"
+                    className="h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 font-mono text-lg tracking-widest outline-none"
+                  />
+
+                  <button
+                    onClick={guardarPinAdmin}
+                    disabled={guardandoPinAdmin}
+                    className="rounded-xl bg-fuchsia-500 px-4 text-xs font-black disabled:opacity-50"
+                  >
+                    {guardandoPinAdmin
+                      ? "..."
+                      : "Guardar PIN"}
+                  </button>
+                </div>
+
+                {mensajePinAdmin && (
+                  <p className="mt-2 text-xs text-yellow-100">
+                    {mensajePinAdmin}
+                  </p>
+                )}
+              </div>
+            )}
 
             {estadoClave && (
               <p className="mt-3 text-sm text-yellow-200">{estadoClave}</p>
@@ -4674,8 +4780,8 @@ export default function AdminPage() {
             </button>
 
             <p className="mt-4 text-xs leading-5 text-gray-500">
-              Nota: si usas Chrome en modo incógnito, Chrome elimina esta clave
-              guardada cuando cierras todas las ventanas incógnitas.
+              Para que no te lo pida de nuevo, usa Chrome normal. En modo incógnito
+              el navegador borra el PIN al cerrar todas las ventanas.
             </p>
           </div>
         </div>

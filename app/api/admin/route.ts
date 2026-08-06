@@ -1,30 +1,13 @@
-import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
+import {
+  NextResponse,
+} from "next/server";
 
-export const dynamic = "force-dynamic";
+import {
+  obtenerAppsScriptUrl,
+} from "../../lib/mundo-config";
 
-const configPath = path.join(
-  process.cwd(),
-  ".mundomusica-config.json"
-);
-
-async function obtenerAppsScriptUrl() {
-  try {
-    const texto = await fs.readFile(
-      configPath,
-      "utf8"
-    );
-
-    const config = JSON.parse(texto);
-
-    return String(
-      config?.appsScriptUrl || ""
-    ).trim();
-  } catch {
-    return "";
-  }
-}
+export const dynamic =
+  "force-dynamic";
 
 export async function POST(
   request: Request
@@ -38,10 +21,10 @@ export async function POST(
         {
           ok: false,
           mensaje:
-            "Mundo Música no tiene configurada la URL de Apps Script.",
+            "El servicio de administración no está configurado.",
         },
         {
-          status: 400,
+          status: 503,
         }
       );
     }
@@ -77,7 +60,7 @@ export async function POST(
         {
           ok: false,
           mensaje:
-            "Falta la clave del panel.",
+            "Escribe tu PIN de administrador.",
         },
         {
           status: 401,
@@ -109,7 +92,7 @@ export async function POST(
         {
           ok: false,
           mensaje:
-            `Apps Script respondió ${respuesta.status}.`,
+            "No se pudo comunicar con el servicio.",
         },
         {
           status: 502,
@@ -146,13 +129,14 @@ export async function POST(
         {
           ok: false,
           mensaje:
-            "Apps Script no devolvió una respuesta JSON válida.",
+            "El servicio no devolvió una respuesta válida.",
         },
         {
           status: 502,
         }
       );
     }
+
   } catch (error) {
     console.error(
       "ADMIN API ERROR:",
@@ -163,7 +147,7 @@ export async function POST(
       {
         ok: false,
         mensaje:
-          "No se pudo conectar con Apps Script.",
+          "No se pudo conectar con el servicio.",
       },
       {
         status: 500,

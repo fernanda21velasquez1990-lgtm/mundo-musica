@@ -181,10 +181,10 @@ export async function POST(
       {
         ok: false,
         mensaje:
-          "Mundo Música no está configurado.",
+          "Servicio temporalmente no disponible.",
       },
       {
-        status: 400,
+        status: 503,
       }
     );
   }
@@ -193,31 +193,23 @@ export async function POST(
     const body =
       await request.json();
 
-    const whatsapp =
-      String(
-        body?.whatsapp || ""
-      )
-      .replace(
-        /\D/g,
-        ""
-      );
-
     const codigo =
       String(
-        body?.codigo || ""
+        body?.codigo ||
+        body?.tokenAcceso ||
+        ""
       )
       .trim()
       .toUpperCase();
 
     if (
-      whatsapp.length < 8 ||
       codigo.length < 6
     ) {
       return NextResponse.json(
         {
           ok: false,
           mensaje:
-            "Escribe tu WhatsApp y tu código de acceso.",
+            "Escribe tu token de acceso.",
         },
         {
           status: 400,
@@ -237,8 +229,7 @@ export async function POST(
           body:
             JSON.stringify({
               accion:
-                "ingresarconcodigo",
-              whatsapp,
+                "ingresarcontoken",
               codigo,
             }),
           redirect:
@@ -263,7 +254,7 @@ export async function POST(
           ok: false,
           mensaje:
             datos?.mensaje ||
-            "WhatsApp o código incorrecto.",
+            "Token de acceso incorrecto.",
           whatsappAdmin:
             datos?.whatsappAdmin ||
             "",
@@ -310,7 +301,7 @@ export async function POST(
 
   } catch (error) {
     console.error(
-      "LOGIN CÓDIGO:",
+      "LOGIN TOKEN:",
       error
     );
 
@@ -318,7 +309,7 @@ export async function POST(
       {
         ok: false,
         mensaje:
-          "No se pudo comprobar tu código. Inténtalo nuevamente.",
+          "No se pudo comprobar tu token. Inténtalo nuevamente.",
       },
       {
         status: 500,
@@ -326,6 +317,7 @@ export async function POST(
     );
   }
 }
+
 
 export async function DELETE() {
   return NextResponse.json({

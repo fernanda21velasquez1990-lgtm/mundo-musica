@@ -410,10 +410,6 @@ export default function Home() {
         !window.navigator.onLine
       );
 
-      if (d.url) {
-        setUrlConfig(d.url);
-      }
-
       return ok;
     } catch (e) {
       console.error("Configuración sin red:", e);
@@ -891,32 +887,16 @@ export default function Home() {
   }
 
   async function ingresarConWhatsapp() {
-    const whatsapp =
-      whatsappIngreso
-        .replace(
-          /\D/g,
-          ""
-        );
-
     const codigo =
       codigoIngreso
         .trim()
         .toUpperCase();
 
     if (
-      whatsapp.length < 8
-    ) {
-      setMensajeIngreso(
-        "⚠️ Escribe tu número de WhatsApp completo."
-      );
-      return;
-    }
-
-    if (
       codigo.length < 6
     ) {
       setMensajeIngreso(
-        "⚠️ Escribe el código de acceso entregado por el administrador."
+        "⚠️ Escribe el token entregado por el administrador."
       );
       return;
     }
@@ -937,7 +917,6 @@ export default function Home() {
             },
             body:
               JSON.stringify({
-                whatsapp,
                 codigo,
               }),
           }
@@ -957,7 +936,7 @@ export default function Home() {
 
         setMensajeIngreso(
           d.mensaje ||
-          "WhatsApp o código de acceso incorrecto."
+          "Token de acceso incorrecto."
         );
 
         setWhatsappAdministrador(
@@ -969,11 +948,6 @@ export default function Home() {
         return;
       }
 
-      /*
-        ESTA ES LA SESIÓN PRINCIPAL.
-        Se guarda en localStorage y se envía explícitamente
-        a cada API. No depende de cookies.
-      */
       guardarSesionCliente(
         String(
           d.sesionCliente
@@ -985,8 +959,7 @@ export default function Home() {
 
       guardarAccesoRecordado(
         String(
-          d?.miembro?.whatsapp ||
-          whatsapp
+          d?.miembro?.whatsapp || ""
         ),
         String(
           d?.miembro?.nombre || ""
@@ -1034,7 +1007,7 @@ export default function Home() {
       console.error(e);
 
       setMensajeIngreso(
-        "❌ No pudimos comprobar tu acceso. Revisa tu conexión e inténtalo nuevamente."
+        "❌ No pudimos comprobar tu token. Inténtalo nuevamente."
       );
 
     } finally {
@@ -1341,16 +1314,6 @@ export default function Home() {
             únicamente el WhatsApp para facilitar el ingreso.
             El código anterior NO se guarda ni se muestra.
           */
-          const recordado =
-            leerAccesoRecordado();
-
-          if (
-            recordado?.whatsapp
-          ) {
-            setWhatsappIngreso(
-              recordado.whatsapp
-            );
-          }
 
           setEstadoAcceso(
             "SIN_ACCESO"
@@ -3774,8 +3737,8 @@ export default function Home() {
 
             <p className="mt-5 max-w-xl text-lg leading-8 text-gray-400">
               Tu biblioteca musical privada para miembros.
-              Ingresa con el mismo número de WhatsApp registrado
-              cuando activaste tu membresía.
+              Ingresa con el token personal que recibiste
+              al activar tu membresía.
             </p>
 
             <div className="mt-8 grid max-w-xl grid-cols-2 gap-3">
@@ -3815,47 +3778,13 @@ export default function Home() {
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-gray-400">
-                La primera vez ingresa tu WhatsApp y tu código. Después este dispositivo recordará tu acceso automáticamente.
+                Ingresa tu token personal. Después este dispositivo recordará tu acceso automáticamente.
               </p>
             </div>
 
             <div className="mt-7">
-              <label className="text-xs font-black uppercase tracking-[0.15em] text-gray-500">
-                Número de WhatsApp
-              </label>
-
-              <div className="mt-2 flex h-14 items-center rounded-2xl border border-white/10 bg-black/30 px-4">
-                <span className="mr-3 text-xl">
-                  📱
-                </span>
-
-                <input
-                  value={whatsappIngreso}
-                  onChange={(e) =>
-                    setWhatsappIngreso(
-                      e.target.value
-                    )
-                  }
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter"
-                    ) {
-                      ingresarConWhatsapp();
-                    }
-                  }}
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="Ej: 584121234567"
-                  className="h-full min-w-0 flex-1 bg-transparent text-base font-bold outline-none placeholder:text-gray-700"
-                />
-              </div>
-
-              <p className="mt-2 text-[11px] leading-5 text-gray-600">
-                Puedes escribirlo con +, espacios o guiones. El sistema guardará únicamente los números.
-              </p>
-
-              <label className="mt-5 block text-xs font-black uppercase tracking-[0.15em] text-gray-500">
-                Código de acceso
+              <label className="block text-xs font-black uppercase tracking-[0.15em] text-gray-500">
+                Token de acceso
               </label>
 
               <div className="mt-2 flex h-14 items-center rounded-2xl border border-white/10 bg-black/30 px-4">
@@ -3884,14 +3813,13 @@ export default function Home() {
               </div>
 
               <p className="mt-2 text-[11px] leading-5 text-gray-600">
-                Este código lo genera el administrador al activar tu membresía.
+                El administrador genera este token al activar tu membresía.
                 Después del primer ingreso correcto, este dispositivo recordará tu sesión.
               </p>
             </div>
 
             <div className="mt-4 rounded-xl border border-purple-500/15 bg-purple-500/[0.04] p-3 text-[11px] leading-5 text-purple-100/80">
-              🔐 Tu código está vinculado exclusivamente al WhatsApp registrado.
-              Si alguien intenta utilizar ese mismo código con otro número, Mundo Música rechazará el acceso.
+              🔐 Tu token pertenece únicamente a tu membresía y al número registrado por el administrador.
             </div>
 
             {mensajeIngreso && (
@@ -3909,7 +3837,7 @@ export default function Home() {
             >
               {ingresando
                 ? "⏳ Validando acceso..."
-                : "Ingresar con mi código"}
+                : "Ingresar con mi token"}
             </button>
 
             {enlaceAdmin ? (
@@ -3929,43 +3857,39 @@ export default function Home() {
             )}
 
             <p className="mt-6 text-center text-[10px] leading-5 text-gray-700">
-              El acceso requiere una membresía activa, tu WhatsApp registrado y tu código personal.
+              El acceso requiere una membresía activa y un token válido.
             </p>
           </div>
         </div>
 
         {mostrarConfig && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-3xl border border-purple-500/30 bg-[#111117] p-6">
-              <h3 className="text-xl font-black">
-                Google Apps Script
+            <div className="w-full max-w-md rounded-3xl border border-purple-500/30 bg-[#111117] p-6 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 text-3xl">
+                🎵
+              </div>
+              <h3 className="mt-4 text-xl font-black">
+                Servicio temporalmente no disponible
               </h3>
-
-              <input
-                value={urlConfig}
-                onChange={(e) =>
-                  setUrlConfig(
-                    e.target.value
-                  )
-                }
-                placeholder="https://script.google.com/macros/s/.../exec"
-                className="mt-5 h-12 w-full rounded-xl border border-white/10 bg-black/30 px-4 text-sm outline-none"
-              />
-
-              {mensajeConfig && (
-                <p className="mt-3 text-sm text-yellow-200">
-                  {mensajeConfig}
-                </p>
-              )}
-
+              <p className="mt-3 text-sm leading-6 text-gray-400">
+                Mundo Música está terminando de conectarse. Intenta nuevamente en unos segundos o comunícate con el administrador.
+              </p>
               <button
-                onClick={guardarConfig}
-                disabled={guardandoConfig}
-                className="mt-4 h-12 w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-50"
+                onClick={async () => {
+                  const ok = await comprobarConfig();
+                  if (ok) {
+                    setMostrarConfig(false);
+                    const acceso = await comprobarAcceso(true);
+                    if (acceso) {
+                      await cargarCanciones();
+                      await cargarAudiolibros();
+                      await cargarProgramacionRadio();
+                    }
+                  }
+                }}
+                className="mt-5 h-12 w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-black"
               >
-                {guardandoConfig
-                  ? "Guardando..."
-                  : "Guardar conexión"}
+                🔄 Intentar nuevamente
               </button>
             </div>
           </div>
@@ -6595,43 +6519,37 @@ export default function Home() {
 
       {/* CONFIG MODAL */}
       {mostrarConfig && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-3xl border border-purple-500/30 bg-[#111117] p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-purple-400">
-                  Configuración
-                </p>
-                <h3 className="mt-2 text-xl font-black">Google Apps Script</h3>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl border border-purple-500/30 bg-[#111117] p-6 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 text-3xl">
+                🎵
               </div>
-              {configurada && (
-                <button onClick={() => setMostrarConfig(false)} className="h-10 w-10 rounded-full bg-white/5">
-                  ✕
-                </button>
-              )}
+              <h3 className="mt-4 text-xl font-black">
+                Servicio temporalmente no disponible
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-gray-400">
+                Mundo Música está terminando de conectarse. Intenta nuevamente en unos segundos o comunícate con el administrador.
+              </p>
+              <button
+                onClick={async () => {
+                  const ok = await comprobarConfig();
+                  if (ok) {
+                    setMostrarConfig(false);
+                    const acceso = await comprobarAcceso(true);
+                    if (acceso) {
+                      await cargarCanciones();
+                      await cargarAudiolibros();
+                      await cargarProgramacionRadio();
+                    }
+                  }
+                }}
+                className="mt-5 h-12 w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-black"
+              >
+                🔄 Intentar nuevamente
+              </button>
             </div>
-
-            <input
-              value={urlConfig}
-              onChange={(e) => setUrlConfig(e.target.value)}
-              placeholder="https://script.google.com/macros/s/.../exec"
-              className="mt-5 h-12 w-full rounded-xl border border-white/10 bg-black/30 px-4 text-sm outline-none"
-            />
-
-            {mensajeConfig && (
-              <p className="mt-3 text-sm text-yellow-200">{mensajeConfig}</p>
-            )}
-
-            <button
-              onClick={guardarConfig}
-              disabled={guardandoConfig}
-              className="mt-4 h-12 w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 font-bold disabled:opacity-50"
-            >
-              {guardandoConfig ? "Guardando..." : "Guardar conexión"}
-            </button>
           </div>
-        </div>
-      )}
+        )}
     </main>
   );
 }
