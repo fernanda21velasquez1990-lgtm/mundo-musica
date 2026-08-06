@@ -24,6 +24,7 @@ type Cancion = {
 
 type FormEdicion = {
   id: string;
+  driveId: string;
   titulo: string;
   artista: string;
   album: string;
@@ -69,6 +70,26 @@ function formatoTiempoLrc(segundos: number) {
     );
 
   return `[${String(minutos).padStart(2, "0")}:${String(segundosEnteros).padStart(2, "0")}.${String(centesimas).padStart(2, "0")}]`;
+}
+
+function tiempo(segundos: number) {
+  const valor =
+    Math.max(
+      0,
+      Number(segundos || 0)
+    );
+
+  const minutos =
+    Math.floor(
+      valor / 60
+    );
+
+  const segundosRestantes =
+    Math.floor(
+      valor % 60
+    );
+
+  return `${String(minutos).padStart(2, "0")}:${String(segundosRestantes).padStart(2, "0")}`;
 }
 
 function parsearLrcAdmin(texto: string) {
@@ -1655,6 +1676,7 @@ export default function AdminPage() {
 
     setEditando({
       id: c.id,
+      driveId: c.driveId || "",
       titulo: c.titulo || "",
       artista: c.artista || "",
       album: c.album || "",
