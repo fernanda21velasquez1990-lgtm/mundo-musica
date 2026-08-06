@@ -343,7 +343,7 @@ export default function AdminRapidoPage() {
         <div className="flex items-center justify-between py-3">
           <div className="flex items-center gap-3">
             <img
-              src="/logo-mundo-musica.png"
+              src="/logo-mundo-musica.png?v=7a5"
               alt="Mundo Música"
               className="h-auto w-16 shrink-0"
             />
@@ -370,7 +370,7 @@ export default function AdminRapidoPage() {
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center">
                 <img
-                  src="/logo-mundo-musica.png"
+                  src="/logo-mundo-musica.png?v=7a5"
                   alt="Mundo Música"
                   className="h-auto w-28"
                 />

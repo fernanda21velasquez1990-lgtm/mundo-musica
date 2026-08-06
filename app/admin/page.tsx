@@ -141,6 +141,29 @@ type FiltroEstado =
   | "PUBLICADAS"
   | "OCULTAS";
 
+const GENEROS_ADMIN_BASE = [
+  "Reggaetón",
+  "Salsa",
+  "Romántica",
+  "Merengue",
+  "Pop",
+  "Bachata",
+  "Vallenato",
+  "Cumbia",
+  "Rock",
+  "Balada",
+  "Cristiana",
+  "Gospel",
+  "Instrumental",
+  "Electrónica",
+  "Hip Hop",
+  "Rap",
+  "Jazz",
+  "Clásica",
+  "Infantil",
+  "Variada",
+];
+
 type ProgramaRadioAdmin = {
   id: string;
   nombre: string;
@@ -1871,6 +1894,31 @@ export default function AdminPage() {
     }
   }
 
+  const generosAdmin = useMemo(() => {
+    const mapa = new Map<string, string>();
+    [...GENEROS_ADMIN_BASE, ...canciones.map((c) => c.genero)]
+      .map((x) => String(x || "").trim())
+      .filter(Boolean)
+      .forEach((x) => mapa.set(x.toLowerCase(), x));
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.localeCompare(b, "es", { sensitivity: "base" })
+    );
+  }, [canciones]);
+
+  const artistasAdmin = useMemo(() =>
+    Array.from(
+      new Set(canciones.map((c) => String(c.artista || "").trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
+    [canciones]
+  );
+
+  const albumesAdmin = useMemo(() =>
+    Array.from(
+      new Set(canciones.map((c) => String(c.album || "").trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
+    [canciones]
+  );
+
   const publicadas = canciones.filter(
     (c) => String(c.publicada).toUpperCase() === "SI"
   ).length;
@@ -1937,7 +1985,7 @@ export default function AdminPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <img
-              src="/logo-mundo-musica.png"
+              src="/logo-mundo-musica.png?v=7a5"
               alt="Mundo Música"
               className="h-auto w-14 shrink-0 md:w-16"
             />
@@ -4872,28 +4920,66 @@ export default function AdminPage() {
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {[
-                ["Título", "titulo"],
-                ["Artista", "artista"],
-                ["Álbum", "album"],
-                ["Género", "genero"],
-              ].map(([label, key]) => (
-                <label key={key} className="block">
-                  <span className="mb-2 block text-sm font-bold text-gray-300">
-                    {label}
-                  </span>
-                  <input
-                    value={String(editando[key as keyof FormEdicion])}
-                    onChange={(e) =>
-                      setEditando({
-                        ...editando,
-                        [key]: e.target.value,
-                      })
-                    }
-                    className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
-                  />
-                </label>
-              ))}
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-gray-300">Título</span>
+                <input
+                  value={editando.titulo}
+                  onChange={(e) => setEditando({ ...editando, titulo: e.target.value })}
+                  className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-gray-300">Artista</span>
+                <input
+                  list="mundo-musica-artistas"
+                  value={editando.artista}
+                  onChange={(e) => setEditando({ ...editando, artista: e.target.value })}
+                  placeholder="Escribe o selecciona"
+                  className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
+                />
+                <datalist id="mundo-musica-artistas">
+                  {artistasAdmin.map((artista) => (
+                    <option key={artista} value={artista} />
+                  ))}
+                </datalist>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-gray-300">Álbum / carpeta</span>
+                <input
+                  list="mundo-musica-albumes"
+                  value={editando.album}
+                  onChange={(e) => setEditando({ ...editando, album: e.target.value })}
+                  placeholder="Escribe o selecciona"
+                  className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
+                />
+                <datalist id="mundo-musica-albumes">
+                  {albumesAdmin.map((album) => (
+                    <option key={album} value={album} />
+                  ))}
+                </datalist>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-gray-300">Género</span>
+                <select
+                  value={editando.genero}
+                  onChange={(e) => setEditando({ ...editando, genero: e.target.value })}
+                  className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 outline-none"
+                >
+                  <option value="">Seleccionar género</option>
+                  {generosAdmin.map((genero) => (
+                    <option key={genero} value={genero}>{genero}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.06] p-4 text-xs leading-5 text-cyan-100/80">
+              ⚡ Carga rápida: con la nueva sincronización puedes subir una carpeta completa a Drive.
+              Si la carpeta incluye una imagen JPG, PNG o WEBP, esa portada se aplicará automáticamente
+              a todas las canciones de esa carpeta.
             </div>
 
             <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-4">

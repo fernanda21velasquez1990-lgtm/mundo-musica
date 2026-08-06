@@ -316,6 +316,7 @@ export default function Home() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [busqueda, setBusqueda] = useState("");
+  const [generoSeleccionado, setGeneroSeleccionado] = useState("");
 
   const [actual, setActual] = useState<Cancion | null>(null);
   const [reproduciendo, setReproduciendo] = useState(false);
@@ -2107,17 +2108,44 @@ export default function Home() {
     accesoOffline
   ]);
 
+  const generosDisponibles = useMemo(() => {
+    const mapa = new Map<string, { nombre: string; canciones: Cancion[] }>();
+
+    canciones.forEach((c) => {
+      const nombre = String(c.genero || "Variada").trim() || "Variada";
+      const clave = nombre.toLowerCase();
+      const actualGenero = mapa.get(clave);
+
+      if (actualGenero) {
+        actualGenero.canciones.push(c);
+      } else {
+        mapa.set(clave, { nombre, canciones: [c] });
+      }
+    });
+
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+    );
+  }, [canciones]);
+
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return canciones;
+    const genero = generoSeleccionado.trim().toLowerCase();
 
-    return canciones.filter((c) =>
-      [c.titulo, c.artista, c.album, c.genero]
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
-    );
-  }, [canciones, busqueda]);
+    return canciones.filter((c) => {
+      const coincideGenero =
+        !genero || String(c.genero || "Variada").trim().toLowerCase() === genero;
+
+      const coincideBusqueda =
+        !q ||
+        [c.titulo, c.artista, c.album, c.genero]
+          .join(" ")
+          .toLowerCase()
+          .includes(q);
+
+      return coincideGenero && coincideBusqueda;
+    });
+  }, [canciones, busqueda, generoSeleccionado]);
 
   function elegirAleatorioRadio<T extends { id: string }>(
     lista: T[],
@@ -3767,7 +3795,7 @@ export default function Home() {
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center">
                 <img
-                  src="/logo-mundo-musica.png"
+                  src="/logo-mundo-musica.png?v=7a5"
                   alt="Mundo Música"
                   className="h-auto w-44 drop-shadow-[0_0_28px_rgba(0,174,255,0.20)] md:w-48"
                 />
@@ -3951,7 +3979,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
             <img
-              src="/logo-mundo-musica.png"
+              src="/logo-mundo-musica.png?v=7a5"
               alt="Mundo Música"
               className="h-auto w-16 shrink-0"
             />
@@ -4005,7 +4033,7 @@ export default function Home() {
         <div className="flex items-center justify-between">
           <div className="flex min-w-0 items-center gap-2.5">
             <img
-              src="/logo-mundo-musica.png"
+              src="/logo-mundo-musica.png?v=7a5"
               alt="Mundo Música"
               className="h-auto w-11 shrink-0"
             />
@@ -4110,13 +4138,19 @@ export default function Home() {
           <span className="text-xl">🔎</span>
           <input
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={(e) => {
+              setBusqueda(e.target.value);
+              if (e.target.value) setGeneroSeleccionado("");
+            }}
             placeholder="Buscar canción, artista o género"
             className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500 md:h-12 md:text-base"
           />
           {busqueda && (
             <button
-              onClick={() => setBusqueda("")}
+              onClick={() => {
+                setBusqueda("");
+                setGeneroSeleccionado("");
+              }}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-sm"
             >
               ✕
@@ -4354,19 +4388,30 @@ export default function Home() {
       <section className={`${seccionMovil === "INICIO" ? "block" : "hidden"} mx-auto max-w-7xl px-4 pt-7 md:block md:px-5 md:pt-2`}>
         <h3 className="mb-3 text-lg font-black md:text-2xl">Explora por género</h3>
         <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {generosBase.map(([icono, nombre]) => (
-            <button
-              key={nombre}
-              onClick={() => {
-                setBusqueda(nombre);
-                ir("musica");
-              }}
-              className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold"
-            >
-              <span>{icono}</span>
-              {nombre}
-            </button>
-          ))}
+          {generosDisponibles.map((grupo) => {
+            const icono =
+              generosBase.find(([, nombre]) =>
+                nombre.toLowerCase() === grupo.nombre.toLowerCase()
+              )?.[0] || "🎵";
+
+            return (
+              <button
+                key={grupo.nombre}
+                onClick={() => {
+                  setBusqueda("");
+                  setGeneroSeleccionado(grupo.nombre);
+                  ir("musica");
+                }}
+                className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold"
+              >
+                <span>{icono}</span>
+                {grupo.nombre}
+                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-400">
+                  {grupo.canciones.length}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -4785,11 +4830,19 @@ export default function Home() {
         <div className="mb-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-purple-400">
-              Para ti
+              {generoSeleccionado ? "Género seleccionado" : "Biblioteca organizada"}
             </p>
             <h3 className="mt-1 text-2xl font-black md:text-4xl">
-              Canciones disponibles
+              {generoSeleccionado ? generoSeleccionado : busqueda ? "Resultados" : "Música por géneros"}
             </h3>
+            {generoSeleccionado && (
+              <button
+                onClick={() => setGeneroSeleccionado("")}
+                className="mt-3 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-300"
+              >
+                ← Ver todos los géneros
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -4851,6 +4904,49 @@ export default function Home() {
           </div>
         )}
 
+        {!busqueda && !generoSeleccionado && !cargando && generosDisponibles.length > 0 && (
+          <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {generosDisponibles.map((grupo) => {
+              const portada = grupo.canciones.find((c) => c.portada)?.portada || "";
+              const icono =
+                generosBase.find(([, nombre]) =>
+                  nombre.toLowerCase() === grupo.nombre.toLowerCase()
+                )?.[0] || "🎵";
+
+              return (
+                <button
+                  key={grupo.nombre}
+                  onClick={() => setGeneroSeleccionado(grupo.nombre)}
+                  className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] text-left transition hover:border-purple-500/40 hover:bg-purple-500/[0.06] md:rounded-3xl"
+                >
+                  <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-purple-900 via-fuchsia-900 to-pink-700">
+                    {portada ? (
+                      <img
+                        src={portada}
+                        alt={grupo.nombre}
+                        className="h-full w-full object-cover opacity-75 transition group-hover:scale-105"
+                      />
+                    ) : (
+                      <span className="flex h-full items-center justify-center text-5xl">{icono}</span>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                    <span className="absolute bottom-3 left-3 text-3xl">{icono}</span>
+                  </div>
+                  <div className="p-4">
+                    <p className="truncate text-lg font-black md:text-xl">{grupo.nombre}</p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {grupo.canciones.length} canción{grupo.canciones.length === 1 ? "" : "es"}
+                    </p>
+                    <span className="mt-3 inline-flex rounded-full bg-purple-500/15 px-3 py-1.5 text-[11px] font-black text-purple-300">
+                      Abrir género →
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {cargando && canciones.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-gray-400">
             🎵 Cargando canciones...
@@ -4863,18 +4959,18 @@ export default function Home() {
           </div>
         )}
 
-        {!cargando && !error && filtradas.length === 0 && (
+        {!cargando && !error && (busqueda || generoSeleccionado) && filtradas.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-gray-400">
             No encontramos canciones.
           </div>
         )}
 
-        {vistaBiblioteca === "PORTADAS" ? (
-          <div className="flex gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+        {(busqueda || generoSeleccionado) && (vistaBiblioteca === "PORTADAS" ? (
+          <div className="grid grid-cols-2 gap-3 pb-3 md:grid-cols-3 lg:grid-cols-4">
             {filtradas.map((c) => (
               <article
                 key={c.id}
-                className="w-[168px] shrink-0 rounded-2xl bg-white/[0.035] p-3 md:w-auto md:rounded-3xl md:border md:border-white/10 md:p-4"
+                className="rounded-2xl border border-white/10 bg-white/[0.035] p-3 md:rounded-3xl md:p-4"
               >
                 <button
                   onClick={() => seleccionar(c)}
@@ -5022,7 +5118,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-        )}
+        ))}
       </section>
 
       {/* SOLICITAR CANCION EN DESKTOP */}
@@ -5042,8 +5138,8 @@ export default function Home() {
             </p>
 
             <div className="mt-6 rounded-2xl bg-white/[0.04] p-4 text-sm text-gray-400">
-              Próxima fase: podremos usar este mismo buscador para consultar
-              contenido disponible mediante Deezer.
+              Si una canción todavía no está disponible, envía la solicitud y el
+              administrador podrá agregarla a la biblioteca.
             </div>
           </div>
 
