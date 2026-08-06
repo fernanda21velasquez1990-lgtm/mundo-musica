@@ -26,6 +26,39 @@ export type MiembroSesion = {
   accesos?: number;
 };
 
+export type TokenLocalValido = {
+  ok: true;
+  codigo: 200;
+  miembro: MiembroSesion;
+  expira: number;
+  sesionRemota: string;
+  token: string;
+};
+
+export type TokenLocalInvalido = {
+  ok: false;
+  codigo: number;
+  mensaje: string;
+};
+
+export type TokenLocalResultado =
+  | TokenLocalValido
+  | TokenLocalInvalido;
+
+export type MembresiaRequestValida =
+  TokenLocalValido & {
+    sesion: string;
+  };
+
+export type MembresiaRequestInvalida =
+  TokenLocalInvalido & {
+    sesion: string;
+  };
+
+export type MembresiaRequestResultado =
+  | MembresiaRequestValida
+  | MembresiaRequestInvalida;
+
 type PayloadSesion = {
   miembro: MiembroSesion;
   exp: number;
@@ -301,7 +334,7 @@ export function obtenerSesionDeRequest(
 
 export async function validarTokenLocal(
   token: string
-) {
+): Promise<TokenLocalResultado> {
   try {
     const partes =
       String(
@@ -424,7 +457,7 @@ export async function validarTokenLocal(
 
 export async function validarMembresiaRequest(
   request: Request
-) {
+): Promise<MembresiaRequestResultado> {
   const sesion =
     obtenerSesionDeRequest(
       request
@@ -445,11 +478,32 @@ export async function validarMembresiaRequest(
       sesion
     );
 
+  if (!validacion.ok) {
+    return {
+      ok: false,
+      codigo:
+        validacion.codigo,
+      mensaje:
+        validacion.mensaje,
+      sesion,
+    };
+  }
+
   return {
-    ...validacion,
+    ok: true,
+    codigo: 200,
+    miembro:
+      validacion.miembro,
+    expira:
+      validacion.expira,
+    sesionRemota:
+      validacion.sesionRemota,
+    token:
+      validacion.token,
     sesion,
   };
 }
+
 
 export function limpiarCacheSesion(
   _sesion: string
