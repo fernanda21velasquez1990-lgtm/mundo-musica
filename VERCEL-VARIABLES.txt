@@ -1,0 +1,17 @@
+MUNDO MUSICA - VARIABLES PARA VERCEL
+
+Cuando lleguemos al paso de Vercel configuraremos:
+
+1) MUNDO_MUSICA_APPS_SCRIPT_URL
+   Valor:
+   La URL completa de la implementación /exec de Apps Script V3S.
+
+2) MUNDO_MUSICA_SESSION_SECRET
+   Valor:
+   Un secreto privado largo.
+   NO se guarda en GitHub.
+   Se coloca directamente en Vercel.
+
+IMPORTANTE:
+No coloques valores reales dentro de .env.example.
+Ese archivo puede ir a GitHub porque solo contiene ejemplos.
