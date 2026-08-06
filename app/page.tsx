@@ -2836,6 +2836,15 @@ export default function Home() {
     c: Cancion,
     desdeRadio = false
   ) {
+    // En celular, tocar una canción abre directamente el reproductor completo.
+    if (
+      !desdeRadio &&
+      typeof window !== "undefined" &&
+      window.innerWidth < 768
+    ) {
+      setPlayerMovilAbierto(true);
+    }
+
     if (
       audioLibroRef.current &&
       !audioLibroRef.current.paused
@@ -4845,7 +4854,7 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex rounded-xl border border-white/10 bg-white/5 p-1">
+            <div className="hidden rounded-xl border border-white/10 bg-white/5 p-1 md:flex">
               <button
                 onClick={() => cambiarVista("PORTADAS")}
                 className={`h-8 rounded-lg px-2 text-xs font-bold ${
@@ -4953,18 +4962,22 @@ export default function Home() {
                 </button>
 
                 {abierto && (
-                  <div className="border-t border-white/10 p-3 md:p-4">
-                    {vistaBiblioteca === "PORTADAS" ? (
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                        {grupo.canciones.map((c) => (
-                          <article
-                            key={c.id}
-                            className="min-w-0 rounded-2xl bg-white/[0.035] p-3 md:rounded-3xl md:border md:border-white/10 md:p-4"
+                  <div className="border-t border-white/10 p-2.5 md:p-4">
+                    {/* CELULAR: lista vertical limpia. Tocar una canción abre el reproductor grande. */}
+                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/10 md:hidden">
+                      {grupo.canciones.map((c) => (
+                        <div
+                          key={c.id}
+                          className={`flex items-center gap-2.5 border-b border-white/10 p-2.5 last:border-b-0 ${
+                            actual?.id === c.id ? "bg-purple-500/[0.08]" : ""
+                          }`}
+                        >
+                          <button
+                            onClick={() => seleccionar(c)}
+                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                            aria-label={`Reproducir ${c.titulo}`}
                           >
-                            <button
-                              onClick={() => seleccionar(c)}
-                              className="relative block aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-purple-800 to-pink-600 md:rounded-2xl"
-                            >
+                            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-purple-800 to-pink-600">
                               {c.portada ? (
                                 <img
                                   src={c.portada}
@@ -4972,110 +4985,169 @@ export default function Home() {
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
-                                <span className="flex h-full items-center justify-center text-5xl">🎵</span>
+                                <span className="flex h-full items-center justify-center text-2xl">🎵</span>
                               )}
 
-                              <span className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-white font-bold text-black shadow-xl md:bottom-3 md:right-3 md:h-11 md:w-11">
-                                {actual?.id === c.id && reproduciendo ? "⏸" : "▶"}
-                              </span>
-                            </button>
+                              {actual?.id === c.id && reproduciendo && (
+                                <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-lg">⏸</span>
+                              )}
+                            </div>
 
-                            <div className="pt-3">
-                              <h4 className="truncate text-sm font-black md:text-lg">{c.titulo}</h4>
-                              <p className="mt-1 truncate text-xs text-gray-400 md:text-sm">{c.artista}</p>
-                              <p className="mt-1 truncate text-[10px] text-gray-600 md:text-xs">
-                                {c.album || grupo.nombre}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-black text-white">{c.titulo}</p>
+                              <p className="mt-0.5 truncate text-xs text-gray-400">{c.artista}</p>
+                              <p className="mt-0.5 truncate text-[10px] text-gray-600">
+                                {[c.album, grupo.nombre].filter(Boolean).join(" • ")}
                               </p>
+                            </div>
 
-                              <div className="mt-3 flex items-center justify-between gap-2">
-                                <span className="text-[10px] font-bold text-gray-600">
-                                  ▶ {Number(c.reproducciones || 0)}
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-black">
+                              {actual?.id === c.id && reproduciendo ? "⏸" : "▶"}
+                            </span>
+                          </button>
+
+                          {c.descargable === "SI" && c.driveId && (
+                            <a
+                              href={urlDownloadMiembro(
+                                c.driveId,
+                                c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
+                              )}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-xs text-blue-300"
+                              title="Descargar MP3"
+                            >
+                              ⬇
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* COMPUTADORA: conserva las vistas Portadas / Lista. */}
+                    <div className="hidden md:block">
+                      {vistaBiblioteca === "PORTADAS" ? (
+                        <div className="grid grid-cols-3 gap-3 lg:grid-cols-4">
+                          {grupo.canciones.map((c) => (
+                            <article
+                              key={c.id}
+                              className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.035] p-4"
+                            >
+                              <button
+                                onClick={() => seleccionar(c)}
+                                className="relative block aspect-square w-full overflow-hidden rounded-2xl bg-gradient-to-br from-purple-800 to-pink-600"
+                              >
+                                {c.portada ? (
+                                  <img
+                                    src={c.portada}
+                                    alt={c.titulo}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="flex h-full items-center justify-center text-5xl">🎵</span>
+                                )}
+
+                                <span className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-white font-bold text-black shadow-xl">
+                                  {actual?.id === c.id && reproduciendo ? "⏸" : "▶"}
                                 </span>
+                              </button>
 
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => guardarUnaOffline(c)}
-                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${
-                                      offlineIds.includes(c.driveId)
-                                        ? "bg-green-500/10 text-green-300"
-                                        : "bg-white/5"
-                                    }`}
-                                    title="Guardar sin internet"
-                                  >
-                                    {offlineIds.includes(c.driveId) ? "✓" : "📥"}
-                                  </button>
+                              <div className="pt-3">
+                                <h4 className="truncate text-lg font-black">{c.titulo}</h4>
+                                <p className="mt-1 truncate text-sm text-gray-400">{c.artista}</p>
+                                <p className="mt-1 truncate text-xs text-gray-600">
+                                  {c.album || grupo.nombre}
+                                </p>
 
-                                  {c.descargable === "SI" && c.driveId && (
-                                    <a
-                                      href={urlDownloadMiembro(
-                                        c.driveId,
-                                        c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
-                                      )}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-xs"
-                                      title="Descargar MP3"
+                                <div className="mt-3 flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-bold text-gray-600">
+                                    ▶ {Number(c.reproducciones || 0)}
+                                  </span>
+
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => guardarUnaOffline(c)}
+                                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${
+                                        offlineIds.includes(c.driveId)
+                                          ? "bg-green-500/10 text-green-300"
+                                          : "bg-white/5"
+                                      }`}
+                                      title="Guardar sin internet"
                                     >
-                                      ⬇️
-                                    </a>
-                                  )}
+                                      {offlineIds.includes(c.driveId) ? "✓" : "📥"}
+                                    </button>
+
+                                    {c.descargable === "SI" && c.driveId && (
+                                      <a
+                                        href={urlDownloadMiembro(
+                                          c.driveId,
+                                          c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
+                                        )}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-xs"
+                                        title="Descargar MP3"
+                                      >
+                                        ⬇️
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/10">
-                        {grupo.canciones.map((c, index) => (
-                          <div
-                            key={c.id}
-                            className="flex items-center gap-3 border-b border-white/10 p-3 last:border-b-0 md:p-4"
-                          >
-                            <button
-                              onClick={() => seleccionar(c)}
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-sm font-bold text-gray-400"
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/10">
+                          {grupo.canciones.map((c, index) => (
+                            <div
+                              key={c.id}
+                              className="flex items-center gap-3 border-b border-white/10 p-4 last:border-b-0"
                             >
-                              {actual?.id === c.id && reproduciendo ? "⏸" : index + 1}
-                            </button>
-
-                            <button
-                              onClick={() => seleccionar(c)}
-                              className="min-w-0 flex-1 text-left"
-                            >
-                              <p className="truncate text-sm font-black md:text-base">{c.titulo}</p>
-                              <p className="truncate text-xs text-gray-500">
-                                {c.artista}{c.album ? ` • ${c.album}` : ""}
-                              </p>
-                            </button>
-
-                            <button
-                              onClick={() => guardarUnaOffline(c)}
-                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs ${
-                                offlineIds.includes(c.driveId)
-                                  ? "bg-green-500/10 text-green-300"
-                                  : "bg-white/5"
-                              }`}
-                              title="Guardar sin internet"
-                            >
-                              {offlineIds.includes(c.driveId) ? "✓" : "📥"}
-                            </button>
-
-                            {c.descargable === "SI" && c.driveId && (
-                              <a
-                                href={urlDownloadMiembro(
-                                  c.driveId,
-                                  c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
-                                )}
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-xs text-blue-300"
-                                title="Descargar MP3"
+                              <button
+                                onClick={() => seleccionar(c)}
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-sm font-bold text-gray-400"
                               >
-                                ⬇
-                              </a>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                                {actual?.id === c.id && reproduciendo ? "⏸" : index + 1}
+                              </button>
+
+                              <button
+                                onClick={() => seleccionar(c)}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <p className="truncate text-base font-black">{c.titulo}</p>
+                                <p className="truncate text-xs text-gray-500">
+                                  {c.artista}{c.album ? ` • ${c.album}` : ""}
+                                </p>
+                              </button>
+
+                              <button
+                                onClick={() => guardarUnaOffline(c)}
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs ${
+                                  offlineIds.includes(c.driveId)
+                                    ? "bg-green-500/10 text-green-300"
+                                    : "bg-white/5"
+                                }`}
+                                title="Guardar sin internet"
+                              >
+                                {offlineIds.includes(c.driveId) ? "✓" : "📥"}
+                              </button>
+
+                              {c.descargable === "SI" && c.driveId && (
+                                <a
+                                  href={urlDownloadMiembro(
+                                    c.driveId,
+                                    c.archivoNombre || `${c.artista} - ${c.titulo}.mp3`
+                                  )}
+                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-xs text-blue-300"
+                                  title="Descargar MP3"
+                                >
+                                  ⬇
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
